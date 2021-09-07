@@ -13,3 +13,11 @@ HTML5 定了 8 个新的 HTML 语义（semantic）  元素。所有这些元�
 header, section, footer, aside, nav, main, article, figure {
     display: block;
 }
+
+
+1.  删除item 参考链接 https://blog.csdn.net/qq_43393963/article/details/104842634
+2. React、Flux 与 Redux  区别  https://imweb.io/topic/57711e37f0a5487b05f325b5
+	
+  
+  React 开发者工具 
+https://github.com/facebook/react/blob/main/packages/react-devtools/CHANGELOG.md
