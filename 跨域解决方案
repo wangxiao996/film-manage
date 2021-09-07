@@ -1,0 +1,288 @@
+跨域解决方案
+
+1、 通过jsonp跨域
+2、 document.domain + iframe跨域
+3、 location.hash + iframe
+4、 window.name + iframe跨域
+5、 postMessage跨域
+6、 跨域资源共享（CORS）
+7、 nginx代理跨域
+8、 nodejs中间件代理跨域
+9、 WebSocket协议跨域
+
+跨域：由于浏览器的同源政策，即域名，协议，端口相同才可以访问，不同域
+之间不能相互访问页面的内容
+
+
+1、JSONP 是 JSON with padding（填充式 JSON 或参数式 JSON）的简写。
+JSONP实现跨域请求的原理简单的说，就是动态创建<script>标签，然后利用<script>的src 不受同源策略约束来跨域获取数据。
+可以通过jQuery 封装JSONP（dataType : "jsonp"）
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>jQuery实现JSONP</title>
+</head>
+<body>
+    <div id="mydiv">
+        <button id="btn">点击</button>
+    </div>
+</body>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+<script type="text/javascript">
+    $(function(){
+        $("#btn").click(function(){
+
+            $.ajax({
+                async : true,
+                url : "https://api.douban.com/v2/book/search",
+                type : "GET",
+                dataType : "jsonp", // 返回的数据类型，设置为JSONP方式
+                jsonp : 'callback', //指定一个查询参数名称来覆盖默认的 jsonp 回调参数名 callback
+                jsonpCallback: 'handleResponse', //设置回调函数名
+                data : {
+                    q : "javascript", 
+                    count : 1
+                }, 
+                success: function(response, status, xhr){
+                    console.log('状态为：' + status + ',状态是：' + xhr.statusText);
+                    console.log(response);
+                }
+            });
+        });
+    });
+</script>
+</html>
+
+
+2、前提条件：
+这两个域名必须属于同一个一级域名(.com), 而且所用的协议，端口都要一致，否则无法利用document.domain进行跨域。 iframe 设置frame  src
+
+<button onclick="crossDomain();">开始跨域</button> 
+<div id="ajax"></div> 
+<iframe src="http://work.2fool.cn/crossdomain/iframe.html" id="iframe" style="display:none;"> 
+</iframe> 
+<script type="text/javascript"> 
+document.domain = '2fool.cn'; 
+function crossDomain(){ 
+var iframe=document.getElementById('iframe').contentWindow.$; 
+iframe.get("http://work.2fool.cn/crossdomain/helloworld.txt",function(data){ 
+document.getElementById("ajax").innerHTML=data; 
+}); 
+} 
+</script>
+
+
+
+3、原理是利用location.hash来进行传值。首先创建自动创建一个隐藏的iframe，假设域名a.com下的文件a.html要和cnblogs.com域名下的c.html传递信息，cs1.html首先创建自动创建一个隐藏的iframe,b，iframe的src指向cnblogs.com域名下的c.html页面，这时的hash值可以做参数传递用。c.html响应请求后再将通过修改c.html的hash值来传递数据，
+同时在c.html上加一个定时器，隔一段时间来判断location.hash的值有没有变化，一点有变化则获取获取hash值。
+
+a.html
+1 <!-- 首先a.html中通过iframe引入了b.html -->
+2 <iframe id="b_iframe" height="0" width="0" src="http://zw.zftec.gov.cn/b.html" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" allowtransparency="yes">
+
+b.html
+<script type="text/javascript">
+    var b_width = Math.max(document.documentElement.clientWidth, document.body.clientWidth);
+    var b_height = Math.max(document.documentElement.clientHeight, document.body.clientHeight);
+    var c_iframe = document.getElementById("c_iframe");
+    c_iframe.src = c_iframe.src + "#" + b_width + "|" + b_height; //http://zw.zftec.gov.cn/c.html#width|height”
+  </script>
+  <!--
+  js读取b.html的宽和高,把读取到的宽和高设置到和a.html
+  在同一个域的中间代理页面车c.html的src的hash里面
+  -->
+  <iframe id="c_iframe" height="0" width="0" src="http://zw.zftec.gov.cn/c.html" style="display:none"></iframe>
+
+c.html
+<script type="text/javascript">
+    var b_iframe = parent.parent.document.getElementById("b_iframe");
+    var hash_url = window.location.hash;
+    var hash_width = hash_url.split("#")[1].split("|")[0] + "px";
+    var hash_height = hash_url.split("#")[1].split("|")[1] + "px";
+    b_iframe.style.width = hash_width;
+    b_iframe.style.height = hash_height;
+  </script>
+  <!-- a.html中的iframe就可以自适应为b.html的宽和高了. -->
+
+
+
+4、window.name这个属性不是一个简单的全局属性 --- 只要在一个window下，无论url怎么变化，只要设置好了window.name，那么后续就一直都不会改变，同理，在iframe中，即使url在变化，iframe中的window.name也是一个固定的值，利用这个，我们就可以实现跨域了
+在应用页面（a.com/app.html）中创建一个iframe，把其src指向数据页面（b.com/data.html）。
+数据页面会把数据附加到这个iframe的window.name上，data.html代码如下：
+<script type="text/javascript">
+    window.name = 'I was there!';    // 这里是要传输的数据，大小一般为2M，IE和firefox下可以大至32M左右
+                                     // 数据格式可以自定义，如json、字符串
+</script>
+在应用页面（a.com/app.html）中监听iframe的onload事件，在此事件中设置这个iframe的src指向本地域的代理文件（代理文件和应用页面在同一域下，所以可以相互通信）。app.html部分代码如下：
+<script type="text/javascript">
+    var state = 0, 
+    iframe = document.createElement('iframe'),
+    loadfn = function() {
+        if (state === 1) {
+            var data = iframe.contentWindow.name;    // 读取数据
+            alert(data);    //弹出'I was there!'
+        } else if (state === 0) {
+            state = 1;
+            iframe.contentWindow.location = "http://a.com/proxy.html";    // 设置的代理文件
+        }  
+    };
+    iframe.src = 'http://b.com/data.html';
+    if (iframe.attachEvent) {
+        iframe.attachEvent('onload', loadfn);
+    } else {
+        iframe.onload  = loadfn;
+    }
+    document.body.appendChild(iframe);
+</script>
+获取数据以后销毁这个iframe，释放内存；这也保证了安全（不被其他域frame js访问）。
+<script type="text/javascript">
+    iframe.contentWindow.document.write('');
+    iframe.contentWindow.close();
+    document.body.removeChild(iframe);
+</script>
+
+
+
+5.该方法可以通过绑定window的message事件来监听发送跨文档消息传输内容。
+它可用于解决以下方面的问题：
+　　a.） 页面和其打开的新窗口的数据传递 　　b.） 多窗口之间消息传递 　　c.） 页面与嵌套的iframe消息传递 　　d.） 上面三个场景的跨域数据传递
+　　2. postMessage用法：
+postMessage(data,origin)方法接受两个参数
+　　参数说明：
+　　data： html5规范支持任意基本类型或可复制的对象，但部分浏览器只支持字符串，所以传参时最好用JSON.stringify()序列化。 　　origin： 协议+主机+端口号，也可以设置为"*"，表示可以传递给任意窗口，如果要指定和当前窗口同源的话设置为"/"。
+
+<iframe id="iframe" src="http://10.73.154.73:8088/rbc/t/search_role.html" style="display:none;"></iframe>
+    <script>       
+        var iframe = document.getElementById('iframe');
+        iframe.onload = function() {
+            var data = {
+                name: 'aym',
+                type:'wuhan'
+            };
+            // 向domain2传送跨域数据
+            iframe.contentWindow.postMessage(JSON.stringify(data), 'http://10.73.154.73:8088');
+        };
+
+        // 接受domain2返回数据，这边给延迟的原因，因为同步传输时，页面不一定立马拿到数据，所以给延迟
+        setTimeout(function(){
+            window.addEventListener('message', function(e) {
+                alert('data from domain2 sss ---> ' + e.data);
+            }, false);
+        },10)
+    </script>
+
+<script>
+        // 接收domain1的数据
+        window.addEventListener('message', function(e) {
+            console.log(e.data);
+
+            var data = JSON.parse(e.data);
+            if (data) {
+                data.number = 16;
+                data.age = 89;
+                data.icon = 'sfafdafdafasdf';
+
+                // 处理后再发回domain1
+                window.parent.postMessage(JSON.stringify(data), 'http://10.73.154.72:8088');
+            }
+        }, false);
+    </script>
+
+
+ 6、https://www.ruanyifeng.com/blog/2016/04/cors.html
+const fetchUpdateResource = function (url, agent) {
+  return function (dispatch) {
+    return fetch(url   + agent.id, {
+      method : "PUT",
+      body: JSON.stringify(updateAgent(agent)),
+      headers: {
+        'Content-type': 'application/json',  // 前端设定
+        'Origin': 'http://localhost:3001/'
+      }
+    })
+    .then(
+      dispatch(toggleAgent({...agent, addResource: false}))
+    )
+    .then(
+      dispatch(fetchAction('http://localhost:3000/agent-list'))
+    )
+  
+  };
+}
+
+后端设定
+app.use(cors({
+  origin: ['http://localhost:3001'],
+  methods: ['GET', 'POST', 'PUT'],
+  allowedHeaders: ['Content-type']
+}))
+
+app.use(function(err, req, res, next) {
+  // set locals, only providing error in development
+  res.header("Access-Control-Allow-Headers", "Authorization, Origin, X-Requested-With, Content-Type, Accept");
+  res.header("Access-Control-Allow-Methods", "PATCH, POST, GET, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header('Access-Control-Allow-Origin', '*');
+});
+
+
+7、1.安装nginx
+	2.修改conf文件夹下的nginx.conf文件
+location /apis { rewrite ^.+apis/?(.*)$ /$1 break; include uwsgi_params; proxy_pass http://localhost:8001; }
+
+其中/apis可以自己定义，这个相当于http://localhost:8001;在前端中请求的url中将http://localhost:8001修改为/apis，
+当前端发送请求的时候，比如本来发送的url地址为http://localhost:8001/login,要使用nginx，就将url地址修改为/apis/login即可
+上面配置中的proxy_pass 为自己的请求的后端域名或ip地址。
+至此nginx配置完毕。
+
+8、Nodejs中间件代理跨域
+利用 node.js 的中间件去处理跨域，类似于 将跨域请求交给第三方，第三方去访问指定的网络，获取数据然后返回
+
+const express = require('express');
+const path = require('path');
+const app = express();
+const request = require('request');
+ 
+// 配置静态文件服务中间件
+let serverUrl='http://220.231.2.29:7668';//server地址
+app.use(express.static(path.join(__dirname, './')));//静态资源index.html和node代码在一个目录下
+app.use('/', function(req, res) {
+  let url = serverUrl + req.url;
+  req.pipe(request(url)).pipe(res);
+});
+ 
+app.listen(3000,'127.0.0.1', function () {//前端ajax地址写 http://127.0.0.1:3000/
+  console.log('server is running at port 3000');
+});
+
+
+9、以下 API 用于创建 WebSocket 对象。
+是一种网络通信协议
+第一个参数 url, 指定连接的 URL。第二个参数 protocol 是可选的，指定了可接受的子协议。
+var Socket = new WebSocket(url, [protocol] );
+
+// 初始化一个 WebSocket 对象
+var ws = new WebSocket("ws://localhost:9998/echo");
+
+// 建立 web socket 连接成功触发事件
+ws.onopen = function () {
+  // 使用 send() 方法发送数据
+  ws.send("发送数据");
+  alert("数据发送中...");
+};
+
+// 接收服务端数据时触发事件
+ws.onmessage = function (evt) {
+  var received_msg = evt.data;
+  alert("数据已接收...");
+};
+
+// 断开 web socket 连接成功触发事件
+ws.onclose = function () {
+  alert("连接已关闭...");
+};
+
+
+
+
