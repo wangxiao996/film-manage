@@ -1,0 +1,14 @@
+ES6
+
+var 在全局范围内有效，let在块级作用域有效  const 在块级作用域有效，const定义常量
+var 会导致变量提升
+ES6 声明变量的六种方法
+var 
+function
+let
+const
+import  命令
+class   命令
+顶层对象的属性
+顶层对象，在浏览器环境指的是window对象，在 Node 指的是global对象。ES5 之中，顶层对象的属性与全局变量是等价的。
+var命令和function命令声明的全局变量，依旧是顶层对象的属性；另一方面规定，let命令、const命令、class命令声明的全局变量，不属于顶层对象的属性。
