@@ -1,0 +1,15 @@
+W3C是英文 World Wide Web Consortium 的缩写，中文意思是W3C理事会或万维网联盟。W3C于1994年10月在麻省理工学院计算机科学实验室成立。创建者是万维网的发明者Tim Berners-Lee。
+　　W3C组织是对网络标准制定的一个非赢利组织，像HTML、XHTML、CSS、XML的标准就是由W3C来定制。
+
+HTML5 中的一些有趣的新特性：
+* 用于绘画的 canvas 元素 
+* 用于媒介回放的 video 和 audio 元素 
+* 对本地离线存储的更好的支持 
+* 新的特殊内容元素，比如 article、footer、header、nav、section 
+* 新的表单控件，比如 calendar、date、time、email、url、search 
+将 HTML5 元素定义为块元素
+HTML5 定了 8 个新的 HTML 语义（semantic）  元素。所有这些元素都是块级 元素。
+为了能让旧版本的浏览器正确显示这些元素，你可以设置 CSS 的 display 属性值为 block:
+header, section, footer, aside, nav, main, article, figure {
+    display: block;
+}
